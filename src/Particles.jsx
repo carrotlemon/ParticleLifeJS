@@ -1,4 +1,8 @@
-import React, { useRef, useEffect, useState } from "react";
+// TODO:
+// complete form for all constants
+// add sliders + custom inputs for some constants
+
+import { useRef, useEffect, useState } from "react";
 import { Point, Rectangle, Quadtree } from './Quadtree.jsx';
 
 const Particles = ({ data }) => {
