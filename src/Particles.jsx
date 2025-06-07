@@ -1,45 +1,45 @@
-// TODO:
-// complete form for all constants
-// add sliders + custom inputs for some constants
-
 import { useRef, useEffect, useState } from "react";
 import { Point, Rectangle, Quadtree } from './Quadtree.jsx';
 
 const Particles = ({ data }) => {
     const canvasRef = useRef(null);
+    const animationRef = useRef(null);
     const lastTimeRef = useRef(performance.now());
     const particlesRef = useRef([]);
     const qtRef = useRef(null);
 
     // SIMULATION SETTINGS
-    const [numParticles, setNumParticles] = useState(200);
-
-    const WALL_BEHAVIOR = 0; // 0 - Wrap 1 - Bounce
+    const [numParticles, setNumParticles] = useState(200); // number of particles per color
     
-    const GRAVITY_TOGGLE = false;
-    const GRAVITY = 100;
-    const GRAVITY_X = 50; // canvas.width / 2;
-    const GRAVITY_Y = 50; // canvas.height / 2;
+    const [colorCount, setColorCount] = useState(5);
+    const [colorOffset, setColorOffset] = useState(0);
+    
+    const [circleSpawn, setCircleSpawn] = useState(false);
+    const [spawnRadius, setSpawnRadius] = useState(300);
 
-    const ORBIT = false;
-    const ORBIT_SPEED = 1*Math.sqrt(Math.sqrt(GRAVITY))/10;
+    const [matrixScalar, setMatrixScalar] = useState(10);
+    const [matrixSelfSetValue, setMatrixSelfSetValue] = useState(false);
+    const [matrixSelfSetValueValue, setMatrixSelfSetValueValue] = useState(-1);
 
-    const CIRCLE_SPAWN = false;
-    const SPAWN_RADIUS = 300;
+    const [minRadius, setMinRadius] = useState(50);
+    const [minForce, setMinForce] = useState(1);
+    const [maxRadius, setMaxRadius] = useState(150);
 
-    //const PARTICLE_COUNT = 200; // per color
-    const COLOR_OFFSET = 0;
-    const COLOR_COUNT = 5;
-    const MATRIX_SCALAR = 10;
-    const MATRIX_SELF_SET_VALUE = false;
-    const MATRIX_SELF_SET_VALUE_VALUE = -1;
+    const [particleMass, setParticleMass] = useState(10);
+    const [forceScalar, setForceScalar] = useState(200);
 
-    const MIN_RADIUS = 50;
-    const MIN_FORCE = 1;
-    const MAX_RADIUS = 150;
+    const [wallBehavior, setWallBehavior] = useState(0); // 0 - Wrap, 1 - Bounce
+    
+    // gravity
+    const [gravityToggle, setGravityToggle] = useState(false);
+    const [gravity, setGravity] = useState(100);
+    // source location of gravity
+    const [gravityX, setGravityX] = useState(50); // canvas.width / 2
+    const [gravityY, setGravityY] = useState(50); // canvas.height / 2
 
-    const PARTICLE_MASS = 10;
-    const FORCE_SCALAR = 200; // Increased for better visibility
+    // orbit
+    const [orbit, setOrbit] = useState(false);
+    const [orbitSpeed, setOrbitSpeed] = useState(1*Math.sqrt(Math.sqrt(100))/10);
 
     useEffect(() => {
         const canvas = canvasRef.current;
@@ -48,30 +48,34 @@ const Particles = ({ data }) => {
         canvas.width = canvas.clientWidth;
         canvas.height = canvas.clientHeight;
 
+        if(animationRef.current) {
+            cancelAnimationFrame(animationRef.current);
+        }
+
         // Create Particles ================================================
 
         // Initialize force matrix
-        let matrix = Array.from({ length: COLOR_COUNT }, () => Array(COLOR_COUNT).fill(0));
-        for (let r = 0; r < COLOR_COUNT; ++r) {
-        for (let c = 0; c < COLOR_COUNT; ++c) {
-            if(MATRIX_SELF_SET_VALUE && r == c) {
-            matrix[r][c] = MATRIX_SELF_SET_VALUE_VALUE;
-            } else {
-            matrix[r][c] = MATRIX_SCALAR*2 * Math.random() - MATRIX_SCALAR; // -1 to 1 force scalar
+        let matrix = Array.from({ length: colorCount }, () => Array(colorCount).fill(0));
+        for (let r = 0; r < colorCount; ++r) {
+            for (let c = 0; c < colorCount; ++c) {
+                if(matrixSelfSetValue && r == c) {
+                matrix[r][c] = matrixSelfSetValueValue;
+                } else {
+                matrix[r][c] = matrixScalar*2 * Math.random() - matrixScalar; // -1 to 1 force scalar
+                }
             }
-        }
         }
 
         // Initialize particles  ================================================
         particlesRef.current = [];
-        for (let color = 0; color < COLOR_COUNT; ++color) {
-        const rgbColor = hsvToRgb(color / (COLOR_COUNT+COLOR_OFFSET), 1.0, 1.0);
+        for (let color = 0; color < colorCount; ++color) {
+        const rgbColor = hsvToRgb(color / (colorCount+colorOffset), 1.0, 1.0);
         for (let i = 0; i < numParticles; ++i) {
             // Set location to random spot in a circle
             let newPoint;
-            if(CIRCLE_SPAWN) {
+            if(circleSpawn) {
             const theta = 2 * Math.PI * Math.random();
-            const r = SPAWN_RADIUS * Math.random();
+            const r = spawnRadius * Math.random();
             newPoint = new Point(canvas.width / 2 + r * Math.cos(theta),
                 canvas.height / 2 + r * Math.sin(theta), color, rgbColor);
             } else {
@@ -93,7 +97,7 @@ const Particles = ({ data }) => {
             for (let p of particlesRef.current) {
                 // Apply forces from nearby particles
                 let inRange = qtRef.current.query(
-                new Rectangle(p.x - MAX_RADIUS, p.y - MAX_RADIUS, MAX_RADIUS * 2, MAX_RADIUS * 2)
+                new Rectangle(p.x - maxRadius, p.y - maxRadius, maxRadius * 2, maxRadius * 2)
                 );
 
                 for (let other of inRange) {
@@ -102,11 +106,11 @@ const Particles = ({ data }) => {
                 let dx = p.x - other.x;
                 let dy = p.y - other.y;
                 let distanceSquared = dx * dx + dy * dy;
-                if (distanceSquared < MAX_RADIUS * MAX_RADIUS) {
-                    let force = MIN_FORCE;
+                if (distanceSquared < maxRadius * maxRadius) {
+                    let force = minForce;
                     let theta = Math.atan2(dy, dx);
-                    if (distanceSquared > MIN_RADIUS * MIN_RADIUS) {
-                    force = FORCE_SCALAR * matrix[p.colorid][other.colorid] * PARTICLE_MASS / distanceSquared;
+                    if (distanceSquared > minRadius * minRadius) {
+                    force = forceScalar * matrix[p.colorid][other.colorid] * particleMass / distanceSquared;
                     }
                     p.applyForce(force, theta, deltaTime);
                 }
@@ -114,15 +118,15 @@ const Particles = ({ data }) => {
                 }
 
                 // Apply Gravity
-                if(GRAVITY_TOGGLE) {
-                p.applyForce(GRAVITY, Math.atan2(GRAVITY_Y - p.y, GRAVITY_X - p.x), deltaTime);
+                if(gravityToggle) {
+                p.applyForce(gravity, Math.atan2(gravityY - p.y, gravityX - p.x), deltaTime);
                 }
 
                 // Apply Orbit
-                if (ORBIT) {
-                let angle = Math.atan2(GRAVITY_Y - p.y, GRAVITY_X - p.x) + Math.PI / 2;
-                p.vx += ORBIT_SPEED * Math.cos(angle);
-                p.vy += ORBIT_SPEED * Math.sin(angle);
+                if (orbit) {
+                let angle = Math.atan2(gravityY - p.y, gravityX - p.x) + Math.PI / 2;
+                p.vx += orbitSpeed * Math.cos(angle);
+                p.vy += orbitSpeed * Math.sin(angle);
                 }
 
                 // Apply velocity damping
@@ -133,16 +137,16 @@ const Particles = ({ data }) => {
                 p.update(deltaTime);
 
                 // Boundary behavior - wrap around edges OR bounce off edges
-                if(!WALL_BEHAVIOR) { // Wrap
+                if(!wallBehavior) { // Wrap
                     if (p.x < 0) p.x = canvas.width;
                     if (p.x > canvas.width) p.x = 0;
                     if (p.y < 0) p.y = canvas.height;
                     if (p.y > canvas.height) p.y = 0;
                 } else { // Bounce
                     if(p.x < 0) { p.x = 0; p.vx *= -1; }
-                    if(p.x > canvas.height) { p.x = canvas.height; p.vx *= -1}
+                    if(p.x > canvas.width) { p.x = canvas.width; p.vx *= -1; }
                     if(p.y < 0) { p.y = 0; p.vy *= -1; }
-                    if(p.y > canvas.height) { p.y = canvas.height; p.vy *= -1}
+                    if(p.y > canvas.height) { p.y = canvas.height; p.vy *= -1; }
                 }
             }
             // Update Quadtree
@@ -150,13 +154,20 @@ const Particles = ({ data }) => {
             // Draw
             ctx.clearRect(0, 0, canvas.width, canvas.height);
             qtRef.current.draw(ctx, true);
-            requestAnimationFrame(animate);
+            animationRef.current = requestAnimationFrame(animate);
         };
 
-        requestAnimationFrame(animate);
+        animationRef.current = requestAnimationFrame(animate);
 
-        return () => { };
-    }, [numParticles]);
+        return () => { 
+            if (animationRef.current) {
+                cancelAnimationFrame(animationRef.current);
+            }
+        };
+    }, [numParticles, colorCount, colorOffset, circleSpawn, spawnRadius, 
+        matrixScalar, matrixSelfSetValue, matrixSelfSetValueValue, 
+        minRadius, minForce, maxRadius, particleMass, forceScalar, 
+        wallBehavior, gravityToggle, gravity, gravityX, gravityY, orbit, orbitSpeed]);
 
     // Rebuilds quadtree with current particles
     const rebuildQuadtree = (canvas) => {
@@ -166,23 +177,129 @@ const Particles = ({ data }) => {
         }
     };
 
-    const handleSubmit = (e) => {
-        e.preventDefault()
-        if(!value.trim()) return
-    }
-
     return <div className="flex justify-center">
         <canvas ref={canvasRef} className="w-[80vw] h-[100vh] border" />
         <div className="text-white">
-            <form onSubmit={handleSubmit}>
-                <p>Number of Particles Per Color</p>
-                <input type="number"
-                    className="bg-white m-2 text-black"
-                    value={numParticles}
-                    onChange={(e) => setNumParticles(e.target.value)}
-                />
-                <button type="submit" className="hover:underline bg-green-700 rounded-sm p-2 m-2">Update</button>
-            </form>
+            <p>Number of Particles Per Color</p>
+            <input type="number"
+                className="bg-white m-2 text-black"
+                value={numParticles}
+                onChange={(e) => setNumParticles(Number(e.target.value))}
+            />
+            <p>Number of Colors</p>
+            <input type="number"
+                className="bg-white m-2 text-black"
+                value={colorCount}
+                onChange={(e) => setColorCount(Number(e.target.value))}
+            />
+            <p>Color Offset</p>
+            <input type="number"
+                className="bg-white m-2 text-black"
+                value={colorOffset}
+                onChange={(e) => setColorOffset(Number(e.target.value))}
+            />
+            <p>Circle Spawn</p>
+            <input type="checkbox"
+                className="bg-white m-2 text-black"
+                value={circleSpawn}
+                onChange={(e) => setCircleSpawn(e.target.checked)}
+            />
+            <p>Circle Spawn Radius</p>
+            <input type="number"
+                className="bg-white m-2 text-black"
+                value={spawnRadius}
+                onChange={(e) => setSpawnRadius(Number(e.target.value))}
+            />
+            <p>Matrix Scalar</p>
+            <input type="number"
+                className="bg-white m-2 text-black"
+                value={matrixScalar}
+                onChange={(e) => setMatrixScalar(Number(e.target.value))}
+            />
+            <p>Toggle Manual Matrix value for same color</p>
+            <input type="checkbox"
+                className="bg-white m-2 text-black"
+                value={matrixSelfSetValue}
+                onChange={(e) => setMatrixSelfSetValue(e.target.checked)}
+            />
+            <p>Manual same color value</p>
+            <input type="number"
+                className="bg-white m-2 text-black"
+                value={matrixSelfSetValueValue}
+                onChange={(e) => setMatrixSelfSetValueValue(Number(e.target.value))}
+            />
+            <p>Minimum Force Radius</p>
+            <input type="number"
+                className="bg-white m-2 text-black"
+                value={minRadius}
+                onChange={(e) => setMinRadius(Number(e.target.value))}
+            />
+            <p>Maximum Force Radius</p>
+            <input type="number"
+                className="bg-white m-2 text-black"
+                value={maxRadius}
+                onChange={(e) => setMaxRadius(Number(e.target.value))}
+            />
+            <p>Minimum Force value</p>
+            <input type="number"
+                className="bg-white m-2 text-black"
+                value={minForce}
+                onChange={(e) => setMinForce(Number(e.target.value))}
+            />
+            <p>Particle Mass</p>
+            <input type="number"
+                className="bg-white m-2 text-black"
+                value={particleMass}
+                onChange={(e) => setParticleMass(Number(e.target.value))}
+            />
+            <p>Force Scalar</p>
+            <input type="number"
+                className="bg-white m-2 text-black"
+                value={forceScalar}
+                onChange={(e) => setForceScalar(Number(e.target.value))}
+            />
+            <p>Wall Behavior (0 - Wrap, 1 - Bounce)</p>
+            <input type="number"
+                className="bg-white m-2 text-black"
+                value={wallBehavior}
+                onChange={(e) => setWallBehavior(Number(e.target.value))}
+            />
+            <p>Toggle Gravity</p>
+            <input type="checkbox"
+                className="bg-white m-2 text-black"
+                value={gravityToggle}
+                onChange={(e) => setGravityToggle(e.target.checked)}
+            />
+            <p>Gravity Value</p>
+            <input type="number"
+                className="bg-white m-2 text-black"
+                value={gravity}
+                onChange={(e) => setGravity(Number(e.target.value))}
+            />
+            <p>Gravity Source X</p>
+            <input type="number"
+                className="bg-white m-2 text-black"
+                value={gravityX}
+                onChange={(e) => setGravityX(Number(e.target.value))}
+            />
+            <p>Gravity Source Y</p>
+            <input type="number"
+                className="bg-white m-2 text-black"
+                value={gravityY}
+                onChange={(e) => setGravityY(Number(e.target.value))}
+            />
+            <p>Toggle Orbit</p>
+            <input type="number"
+                className="bg-white m-2 text-black"
+                value={orbit}
+                onChange={(e) => setOrbit(e.target.value)}
+            />
+            <p>Orbit Value</p>
+            <input type="number"
+                className="bg-white m-2 text-black"
+                value={orbitSpeed}
+                onChange={(e) => setOrbitSpeed(Number(e.target.value))}
+            />
         </div>    
     </div>
 };
