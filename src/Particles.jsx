@@ -9,6 +9,7 @@ const Particles = ({ data }) => {
     const qtRef = useRef(null);
 
     // SIMULATION SETTINGS
+    const [gridToggle, setGridToggle] = useState(false); // toggle quadtree grid
     const [numParticles, setNumParticles] = useState(200); // number of particles per color
     
     const [colorCount, setColorCount] = useState(5);
@@ -70,20 +71,20 @@ const Particles = ({ data }) => {
         particlesRef.current = [];
         for (let color = 0; color < colorCount; ++color) {
         const rgbColor = hsvToRgb(color / (colorCount+colorOffset), 1.0, 1.0);
-        for (let i = 0; i < numParticles; ++i) {
-            // Set location to random spot in a circle
-            let newPoint;
-            if(circleSpawn) {
-            const theta = 2 * Math.PI * Math.random();
-            const r = spawnRadius * Math.random();
-            newPoint = new Point(canvas.width / 2 + r * Math.cos(theta),
-                canvas.height / 2 + r * Math.sin(theta), color, rgbColor);
-            } else {
-            newPoint = new Point(canvas.width*Math.random(), canvas.height*Math.random(), color, rgbColor);
+            for (let i = 0; i < numParticles; ++i) {
+                // Set location to random spot in a circle
+                let newPoint;
+                if(circleSpawn) {
+                const theta = 2 * Math.PI * Math.random();
+                const r = spawnRadius * Math.random();
+                newPoint = new Point(canvas.width / 2 + r * Math.cos(theta),
+                    canvas.height / 2 + r * Math.sin(theta), color, rgbColor);
+                } else {
+                newPoint = new Point(canvas.width*Math.random(), canvas.height*Math.random(), color, rgbColor);
+                }
+                
+                particlesRef.current.push(newPoint);
             }
-            
-            particlesRef.current.push(newPoint);
-        }
         }
 
         // Initialize quadtree ================================================
@@ -153,7 +154,7 @@ const Particles = ({ data }) => {
             rebuildQuadtree(canvas);
             // Draw
             ctx.clearRect(0, 0, canvas.width, canvas.height);
-            qtRef.current.draw(ctx, true);
+            qtRef.current.draw(ctx, gridToggle);
             animationRef.current = requestAnimationFrame(animate);
         };
 
@@ -164,7 +165,7 @@ const Particles = ({ data }) => {
                 cancelAnimationFrame(animationRef.current);
             }
         };
-    }, [numParticles, colorCount, colorOffset, circleSpawn, spawnRadius, 
+    }, [gridToggle, numParticles, colorCount, colorOffset, circleSpawn, spawnRadius, 
         matrixScalar, matrixSelfSetValue, matrixSelfSetValueValue, 
         minRadius, minForce, maxRadius, particleMass, forceScalar, 
         wallBehavior, gravityToggle, gravity, gravityX, gravityY, orbit, orbitSpeed]);
@@ -180,6 +181,12 @@ const Particles = ({ data }) => {
     return <div className="flex justify-center">
         <canvas ref={canvasRef} className="w-[80vw] h-[100vh] border" />
         <div className="text-white">
+            <p>Grid Toggle</p>
+            <input type="checkbox"
+                className="bg-white m-2 text-black"
+                value={gridToggle}
+                onChange={(e) => setGridToggle(e.target.checked)}
+            />
             <p>Number of Particles Per Color</p>
             <input type="number"
                 className="bg-white m-2 text-black"
