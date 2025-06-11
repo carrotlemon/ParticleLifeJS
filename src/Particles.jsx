@@ -42,21 +42,18 @@ const Particles = ({ data }) => {
     const [orbit, setOrbit] = useState(false);
     const [orbitSpeed, setOrbitSpeed] = useState(1*Math.sqrt(Math.sqrt(100))/10);
 
+    let matrix = Array.from({ length: colorCount }, () => Array(colorCount).fill(0));
+
     useEffect(() => {
         const canvas = canvasRef.current;
-        const ctx = canvas.getContext("2d");
         // Set canvas size
         canvas.width = canvas.clientWidth;
         canvas.height = canvas.clientHeight;
 
-        if(animationRef.current) {
-            cancelAnimationFrame(animationRef.current);
-        }
-
         // Create Particles ================================================
 
         // Initialize force matrix
-        let matrix = Array.from({ length: colorCount }, () => Array(colorCount).fill(0));
+        
         for (let r = 0; r < colorCount; ++r) {
             for (let c = 0; c < colorCount; ++c) {
                 if(matrixSelfSetValue && r == c) {
@@ -68,7 +65,6 @@ const Particles = ({ data }) => {
         }
 
         // Initialize particles  ================================================
-        particlesRef.current = [];
         for (let color = 0; color < colorCount; ++color) {
         const rgbColor = hsvToRgb(color / (colorCount+colorOffset), 1.0, 1.0);
             for (let i = 0; i < numParticles; ++i) {
@@ -85,6 +81,18 @@ const Particles = ({ data }) => {
                 
                 particlesRef.current.push(newPoint);
             }
+        }
+    }, [numParticles, colorCount, circleSpawn, spawnRadius, matrixSelfSetValue, matrixSelfSetValueValue]);
+
+    useEffect(() => {
+        const canvas = canvasRef.current;
+        const ctx = canvas.getContext("2d");
+        // Set canvas size
+        canvas.width = canvas.clientWidth;
+        canvas.height = canvas.clientHeight;
+
+        if(animationRef.current) {
+            cancelAnimationFrame(animationRef.current);
         }
 
         // Initialize quadtree ================================================
